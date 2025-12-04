@@ -41,7 +41,11 @@ const Signup = () => {
         <h2>Create Account</h2>
         <p className="auth-subtitle">Join WordNest and start blogging</p>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className={`error-message ${error.includes('Cannot connect to server') ? 'connection-error' : ''}`}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

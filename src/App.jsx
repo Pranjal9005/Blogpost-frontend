@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Posts from './components/Posts';
+import Profile from './components/Profile';
 import './App.css';
 
 function App() {
@@ -18,6 +19,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Posts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             }
           />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { postsAPI } from '../services/api';
+import { postsAPI, getImageUrl } from '../services/api';
 import './Posts.css';
 
 const Posts = () => {
@@ -12,9 +12,12 @@ const Posts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newPost, setNewPost] = useState({ title: '', content: '' });
+  const [newPost, setNewPost] = useState({ title: '', content: '', image: null });
+  const [imagePreview, setImagePreview] = useState(null);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
@@ -54,9 +57,70 @@ const Posts = () => {
     navigate('/login');
   };
 
+  const handleProfileClick = (e) => {
+    e.preventDefault();
+    setShowProfileDropdown(!showProfileDropdown);
+  };
+
+  const handleProfileLinkClick = () => {
+    setShowProfileDropdown(false);
+    navigate('/profile');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showProfileDropdown && !event.target.closest('.profile-dropdown-container')) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
+
   const handleToggleForm = () => {
     setShowCreateForm((prev) => !prev);
     setFormError('');
+    setNewPost({ title: '', content: '', image: null });
+    setImagePreview(null);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      setNewPost({ ...newPost, image: null });
+      setImagePreview(null);
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setFormError('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size (5MB = 5 * 1024 * 1024 bytes)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setFormError('File too large. Maximum size is 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setFormError('');
+    setNewPost({ ...newPost, image: file });
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCreatePost = async (event) => {
@@ -73,8 +137,13 @@ const Posts = () => {
     setFormError('');
 
     try {
-      await postsAPI.createPost({ title, content });
-      setNewPost({ title: '', content: '' });
+      await postsAPI.createPost({ 
+        title, 
+        content, 
+        image: newPost.image 
+      });
+      setNewPost({ title: '', content: '', image: null });
+      setImagePreview(null);
       setShowCreateForm(false);
       setCurrentPage(1);
       fetchPosts(1);
@@ -105,15 +174,46 @@ const Posts = () => {
     return (
       <div className="posts-container">
         <div className="posts-header">
-          <h1>WordNest</h1>
+          <Link to="/posts" className="logo-link">
+            <h1>WordNest</h1>
+          </Link>
           <div className="header-actions">
-            {user && <span className="user-info">Welcome, {user.username}</span>}
+            {user && (
+              <div className="user-greeting">
+                <span className="greeting-text">Welcome,</span>
+                <span className="username-text">{user.username}</span>
+              </div>
+            )}
             <button onClick={handleToggleForm} className="primary-button">
               {showCreateForm ? 'Close' : 'New Post'}
             </button>
-            <button onClick={handleLogout} className="logout-button">
-              Logout
-            </button>
+            <div className="profile-dropdown-container">
+              <button 
+                onClick={handleProfileClick} 
+                className="profile-dropdown-button"
+                aria-expanded={showProfileDropdown}
+              >
+                {user?.username || 'Profile'}
+                <span className="dropdown-arrow">▼</span>
+              </button>
+              {showProfileDropdown && (
+                <div className="profile-dropdown-menu">
+                  <Link 
+                    to="/profile" 
+                    className="dropdown-item"
+                    onClick={handleProfileLinkClick}
+                  >
+                    View Profile
+                  </Link>
+                  <button 
+                    onClick={handleLogout} 
+                    className="dropdown-item logout-item"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="loading-container">
@@ -127,19 +227,54 @@ const Posts = () => {
   return (
     <div className="posts-container">
       <div className="posts-header">
-        <h1>WordNest</h1>
+        <Link to="/posts" className="logo-link">
+          <h1>WordNest</h1>
+        </Link>
         <div className="header-actions">
-          {user && <span className="user-info">Welcome, {user.username}</span>}
+          {user && (
+            <div className="user-greeting">
+              <span className="greeting-text">Welcome,</span>
+              <span className="username-text">{user.username}</span>
+            </div>
+          )}
           <button onClick={handleToggleForm} className="primary-button">
             {showCreateForm ? 'Close' : 'New Post'}
           </button>
-          <button onClick={handleLogout} className="logout-button">
-            Logout
-          </button>
+          <div className="profile-dropdown-container">
+            <button 
+              onClick={handleProfileClick} 
+              className="profile-dropdown-button"
+              aria-expanded={showProfileDropdown}
+            >
+              {user?.username || 'Profile'}
+              <span className="dropdown-arrow">▼</span>
+            </button>
+            {showProfileDropdown && (
+              <div className="profile-dropdown-menu">
+                <Link 
+                  to="/profile" 
+                  className="dropdown-item"
+                  onClick={handleProfileLinkClick}
+                >
+                  View Profile
+                </Link>
+                <button 
+                  onClick={handleLogout} 
+                  className="dropdown-item logout-item"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className={`error-banner ${error.includes('Cannot connect to server') ? 'connection-error' : ''}`}>
+          {error}
+        </div>
+      )}
 
       {showCreateForm && (
         <div className="create-post-card">
@@ -167,6 +302,36 @@ const Posts = () => {
                 placeholder="Share your thoughts..."
                 disabled={creating}
               ></textarea>
+            </div>
+            <div className="form-group">
+              <label htmlFor="image">Image (Optional)</label>
+              <input
+                id="image"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleImageChange}
+                disabled={creating}
+              />
+              <small className="file-hint">
+                JPEG, PNG, GIF, or WebP. Maximum 5MB.
+              </small>
+              {imagePreview && (
+                <div className="image-preview">
+                  <img src={imagePreview} alt="Preview" />
+                  <button
+                    type="button"
+                    className="remove-image-button"
+                    onClick={() => {
+                      setNewPost({ ...newPost, image: null });
+                      setImagePreview(null);
+                      document.getElementById('image').value = '';
+                    }}
+                    disabled={creating}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              )}
             </div>
             <div className="form-actions">
               <button
@@ -197,6 +362,17 @@ const Posts = () => {
             <div className="posts-grid">
               {posts.map((post) => (
                 <article key={post.id} className="post-card">
+                  {post.image_url && (
+                    <div className="post-image">
+                      <img 
+                        src={getImageUrl(post.image_url)} 
+                        alt={post.title}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="post-header">
                     <h3 className="post-title">{post.title}</h3>
                     <span className="post-author">by {post.author_name}</span>

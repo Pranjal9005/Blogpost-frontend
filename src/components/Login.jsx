@@ -33,7 +33,11 @@ const Login = () => {
         <h2>Welcome Back</h2>
         <p className="auth-subtitle">Sign in to continue to WordNest</p>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className={`error-message ${error.includes('Cannot connect to server') ? 'connection-error' : ''}`}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

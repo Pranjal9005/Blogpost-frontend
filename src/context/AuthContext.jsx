@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -18,13 +18,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is already logged in (token exists)
-    const token = authAPI.getToken();
-    if (token) {
-      // Token exists, but we don't have user info
-      // In a real app, you might want to validate the token or fetch user info
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    const fetchUserProfile = async () => {
+      const token = authAPI.getToken();
+      if (token) {
+        try {
+          // Fetch user profile to get complete user info
+          const profile = await userAPI.getProfile();
+          setUser(profile);
+          setIsAuthenticated(true);
+        } catch (error) {
+          // If profile fetch fails, token might be invalid
+          // Clear token and set as not authenticated
+          authAPI.logout();
+          setIsAuthenticated(false);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchUserProfile();
   }, []);
 
   const login = async (email, password) => {
@@ -55,6 +67,20 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const profile = await userAPI.getProfile();
+      setUser(profile);
+      return { success: true, data: profile };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -64,6 +90,8 @@ export const AuthProvider = ({ children }) => {
         login,
         signup,
         logout,
+        updateUser,
+        refreshProfile,
       }}
     >
       {children}
